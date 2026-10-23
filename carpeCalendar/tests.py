@@ -8,7 +8,7 @@ from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from carpeCalendar.models import Event, EventDates, Category, Place
+from carpeCalendar.models import Event, EventDates, Category, Place, AcademicPeriod
 
 BRUSSELS = zoneinfo.ZoneInfo('Europe/Brussels')
 
@@ -192,3 +192,30 @@ class EditLinkTests(TestCase):
         response = self.submit(f'/event/{event.id}/edit/{event.edit_token}', title='Hacked')
         self.assertEqual(response.status_code, 403)
         self.assertFalse(Event.objects.filter(title='Hacked').exists())
+
+
+class WeekImageTests(TestCase):
+
+    def test_week_poster(self):
+        category = Category.objects.create(name='Soirée', description='')
+        AcademicPeriod.objects.create(name='S', start=datetime.date(2026, 9, 14), end=datetime.date(2026, 12, 20), numbered=True)
+        event = Event.objects.create(title='Quiz', location='Grand-Place', category=category, validated=True)
+        EventDates.objects.create(
+            event=event,
+            start=datetime.datetime(2026, 10, 23, 20, 0, tzinfo=BRUSSELS),
+            end=datetime.datetime(2026, 10, 23, 23, 0, tzinfo=BRUSSELS),
+        )
+        pending = Event.objects.create(title='Pending', location='Grand-Place', category=category)
+        EventDates.objects.create(
+            event=pending,
+            start=datetime.datetime(2026, 10, 23, 20, 0, tzinfo=BRUSSELS),
+            end=datetime.datetime(2026, 10, 23, 23, 0, tzinfo=BRUSSELS),
+        )
+
+        response = self.client.get('/week-image/', {'date': '2026-10-21'})
+        self.assertEqual(response.context['monday'], datetime.date(2026, 10, 19))
+        self.assertEqual(response.context['week_label'], 'S6')
+        self.assertContains(response, 'Vendredi 23 octobre')
+        self.assertContains(response, '20:00')
+        self.assertContains(response, 'Quiz')
+        self.assertNotContains(response, 'Pending')

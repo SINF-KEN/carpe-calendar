@@ -128,6 +128,33 @@ def event_ics(request, event_id):
     dates = event.eventdates_set.select_related('event', 'event__category').order_by('start')
     return ics_response(request, dates, f'evenement-{event.id}.ics')
 
+def week_image(request):
+    # Poster of a week's events, to download as an image for social media
+    try:
+        day = datetime.date.fromisoformat(request.GET.get('date', ''))
+    except ValueError:
+        day = timezone.localdate(timezone=BRUSSELS)
+    monday = day - datetime.timedelta(days=day.weekday())
+    sunday = monday + datetime.timedelta(days=6)
+    week_start = datetime.datetime.combine(monday, datetime.time(), tzinfo=BRUSSELS)
+    week_end = week_start + datetime.timedelta(days=7)
+    dates = EventDates.objects.filter(
+        event__validated=True, start__gte=week_start, start__lt=week_end,
+    ).select_related('event').order_by('start')
+    # Templates render times in UTC (TIME_ZONE), so convert to Brussels time here
+    days = defaultdict(list)
+    for date in dates:
+        start = timezone.localtime(date.start, BRUSSELS)
+        days[start.date()].append({'time': start.strftime('%H:%M'), 'event': date.event})
+    return render(request, 'week_image.html', {
+        'monday': monday,
+        'sunday': sunday,
+        'week_label': AcademicPeriod.week_label(monday),
+        'days': sorted(days.items()),
+        'previous_week': monday - datetime.timedelta(days=7),
+        'next_week': monday + datetime.timedelta(days=7),
+    })
+
 def create_qr_code(request):
     return render(request, 'create_qr_code.html')
 

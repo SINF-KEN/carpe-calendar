@@ -81,6 +81,16 @@ class AcademicPeriod(models.Model):
     class Meta:
         ordering = ['start']
 
+    @classmethod
+    def week_label(cls, day):
+        # Same rule as getWeekNumber in calendar.js
+        period = cls.objects.filter(start__lte=day, end__gte=day).first()
+        if period is None:
+            return None
+        if not period.numbered:
+            return period.name
+        return f"{period.name}{period.first_week_number + (day - period.start).days // 7}"
+
     def clean(self):
         if self.start and self.end and self.start > self.end:
             raise ValidationError("End date must be after start date")
