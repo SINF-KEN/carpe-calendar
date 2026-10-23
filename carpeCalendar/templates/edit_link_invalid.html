@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block stylesheets %}
     {% load static %}
@@ -7,7 +8,7 @@
 
 {% block sidebar-content %}
 <div class="sidebar-link">
-    <a href="{% url 'calendar' %}">Agenda</a>
+    <a href="{% url 'calendar' %}">{% translate "Agenda" %}</a>
 </div>
 <hr class="hr" />
 {% endblock %}
@@ -15,8 +16,8 @@
 {% block body %}
 <div class="container-event-form">
     <div class="alert alert-warning" role="alert">
-        Ce lien de modification n'est pas valide ou a expiré.
-        Contactez le <a href="https://www.carpestudentem.be">CarpeStudentem</a> pour recevoir un nouveau lien.
+        {% translate "Ce lien de modification n'est pas valide ou a expiré." %}
+        {% blocktranslate %}Contactez le <a href="https://www.carpestudentem.be">CarpeStudentem</a> pour recevoir un nouveau lien.{% endblocktranslate %}
     </div>
 </div>
 {% endblock %}

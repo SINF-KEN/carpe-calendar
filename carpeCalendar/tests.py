@@ -240,3 +240,23 @@ class ProgressiveWebAppTests(TestCase):
         response = self.client.get('/calendar/')
         self.assertContains(response, '<link rel="manifest" href="/manifest.webmanifest">')
         self.assertContains(response, 'navigator.serviceWorker.register("/sw.js")')
+
+
+class TranslationTests(TestCase):
+
+    def test_french_by_default(self):
+        response = self.client.get('/calendar/')
+        self.assertContains(response, '<html lang="fr">')
+        self.assertContains(response, 'Ajouter un événement')
+
+    def test_english_from_browser_language(self):
+        response = self.client.get('/calendar/', headers={'Accept-Language': 'en-GB,en;q=0.9'})
+        self.assertContains(response, '<html lang="en">')
+        self.assertContains(response, 'Add an event')
+        self.assertContains(response, 'Subscribe to the calendar')
+
+    def test_language_switcher(self):
+        response = self.client.post('/i18n/setlang/', {'language': 'en', 'next': '/add-event'})
+        self.assertRedirects(response, '/add-event', fetch_redirect_response=False)
+        response = self.client.get('/add-event')
+        self.assertContains(response, 'Basic information')

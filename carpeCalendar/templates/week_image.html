@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load i18n %}
 
 {% block stylesheets %}
     {% load static %}
@@ -7,11 +8,11 @@
 
 {% block sidebar-content %}
 <div class="sidebar-link">
-    <a href="{% url 'calendar' %}">Agenda</a>
+    <a href="{% url 'calendar' %}">{% translate "Agenda" %}</a>
 </div>
 <hr class="hr" />
 <div class="sidebar-link">
-    <a href="{% url 'add_event' %}">Ajouter un évènement</a>
+    <a href="{% url 'add_event' %}">{% translate "Ajouter un évènement" %}</a>
 </div>
 <hr class="hr" />
 {% endblock %}
@@ -19,8 +20,8 @@
 {% block body %}
 <div class="week-image-page">
     <div class="week-image-controls">
-        <a class="btn btn-outline-secondary btn-sm" href="?date={{ previous_week|date:'Y-m-d' }}"><i class="fa-solid fa-chevron-left"></i> Semaine précédente</a>
-        <a class="btn btn-outline-secondary btn-sm" href="?date={{ next_week|date:'Y-m-d' }}">Semaine suivante <i class="fa-solid fa-chevron-right"></i></a>
+        <a class="btn btn-outline-secondary btn-sm" href="?date={{ previous_week|date:'Y-m-d' }}"><i class="fa-solid fa-chevron-left"></i> {% translate "Semaine précédente" %}</a>
+        <a class="btn btn-outline-secondary btn-sm" href="?date={{ next_week|date:'Y-m-d' }}">{% translate "Semaine suivante" %} <i class="fa-solid fa-chevron-right"></i></a>
         <button type="button" class="btn btn-primary btn-sm" id="download-png"><i class="fa-solid fa-download"></i> PNG</button>
         <button type="button" class="btn btn-primary btn-sm" id="download-jpg"><i class="fa-solid fa-download"></i> JPG</button>
     </div>
@@ -49,7 +50,7 @@
                     {% endfor %}
                 </section>
                 {% empty %}
-                <p class="week-poster-empty">Aucun événement cette semaine.</p>
+                <p class="week-poster-empty">{% translate "Aucun événement cette semaine." %}</p>
                 {% endfor %}
             </main>
             <footer class="week-poster-footer">agenda.carpestudentem.be</footer>

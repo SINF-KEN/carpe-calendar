@@ -14,6 +14,8 @@ from django.http import JsonResponse, HttpResponse
 from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
+from django.utils import translation
+from django.utils.translation import gettext as _
 
 from carpeCalendar.models import Event, EventDates, Category, Place, AcademicPeriod
 from carpeCalendar.forms import EventForm
@@ -161,8 +163,8 @@ def manifest(request):
     return JsonResponse({
         'name': 'Agenda du Carpe',
         'short_name': 'Agenda Carpe',
-        'description': "Les événements de Louvain-la-Neuve, par le CarpeStudentem",
-        'lang': 'fr',
+        'description': _("Les événements de Louvain-la-Neuve, par le CarpeStudentem"),
+        'lang': translation.get_language(),
         'start_url': reverse('calendar'),
         'scope': '/',
         'display': 'standalone',
@@ -215,12 +217,15 @@ def send_edit_link(request, event):
     if not (event.email_organizer and settings.EMAIL_HOST):
         return
     expires = timezone.localtime(event.edit_token_expires_at, BRUSSELS).strftime('%d/%m/%Y')
+    # Sent in the language the organizer used to submit the event
     send_mail(
-        f"Votre événement « {event.title} » sur l'Agenda du Carpe",
-        f"Bonjour,\n\n"
-        f"Merci d'avoir ajouté « {event.title} » à l'Agenda du Carpe. Il sera visible dès qu'il aura été validé.\n\n"
-        f"Pour le modifier jusqu'au {expires}, utilisez ce lien (ne le partagez pas) :\n{edit_url(request, event)}\n\n"
-        f"L'équipe du CarpeStudentem",
+        _("Votre événement « %(title)s » sur l'Agenda du Carpe") % {'title': event.title},
+        _(
+            "Bonjour,\n\n"
+            "Merci d'avoir ajouté « %(title)s » à l'Agenda du Carpe. Il sera visible dès qu'il aura été validé.\n\n"
+            "Pour le modifier jusqu'au %(expires)s, utilisez ce lien (ne le partagez pas) :\n%(url)s\n\n"
+            "L'équipe du CarpeStudentem"
+        ) % {'title': event.title, 'expires': expires, 'url': edit_url(request, event)},
         None,
         [event.email_organizer],
         fail_silently=True,

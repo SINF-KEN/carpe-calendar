@@ -1,8 +1,9 @@
-<!DOCTYPE html>
-<html lang="fr">
+{% load i18n %}<!DOCTYPE html>
+{% get_current_language as LANGUAGE_CODE %}
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Agenda du CarpeStudentem des activaté néo-louvainistes. L'Agenda du carpe (CarpeStudentem) est l'agenda des événements se déroulant à Louvain-la-Neuve.">
+    <meta name="description" content="{% translate "Agenda du CarpeStudentem des activités néo-louvanistes. L'Agenda du Carpe (CarpeStudentem) est l'agenda des événements se déroulant à Louvain-la-Neuve." %}">
     <meta name="keywords" content="Agenda, CarpeStudentem, Planning, Étudiant, Études, École, Université, Cours, Devoirs, Examen, Rendez-vous, Événement, Emploi du temps, Louvain-la-neuve, Louvain la neuve, Louvain, KAP, kot-à-projet, kot, étudiant, étudiants">
     <meta name="author" content="CarpeStudentem">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -41,6 +42,14 @@
                 {% block sidebar-after-title %}{% endblock %}
             </div>
         </nav>
+        <form action="{% url 'set_language' %}" method="post" class="language-switcher">
+            {% csrf_token %}
+            <input name="next" type="hidden" value="{{ request.get_full_path }}">
+            {% get_available_languages as languages %}
+            {% for code, name in languages %}
+            <button type="submit" name="language" value="{{ code }}" class="btn btn-link btn-sm{% if code == LANGUAGE_CODE %} active{% endif %}" title="{{ name }}" lang="{{ code }}">{{ code|upper }}</button>
+            {% endfor %}
+        </form>
         {% block sidebar-content %}{% endblock %}
     </section>
     <section class="main">

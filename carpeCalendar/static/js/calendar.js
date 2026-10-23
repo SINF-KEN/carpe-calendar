@@ -85,19 +85,19 @@ function createCalendar() {
         initialView: screen.width > 800 ? 'dayGridWeek' : 'dayGridDay',
         customButtons: {
             addEvent: {
-                text: 'Ajouter un événement',
+                text: calendarText.addEvent,
                 click: function() {
                     location.href = "/add-event";
                 }
             },
             today: {
-                text: 'Aujourd\'hui',
+                text: calendarText.today,
                 click: function() {
                     calendar.today();
                 }
             }
         },
-        locale: 'fr',
+        locale: document.documentElement.lang,
         firstDay: 1,
         headerToolbar: {
             left: 'addEvent',
@@ -105,12 +105,11 @@ function createCalendar() {
             right: 'dayGridDay,dayGridWeek,dayGridMonth,listMonth prev,today,next',
         },
         buttonText: {
-            month: 'Mois',
-            listMonth: "Liste",
-            week: 'Semaine',
-            day: 'Jour',
-            today: 'Aujourd\'hui',
-
+            month: calendarText.month,
+            listMonth: calendarText.list,
+            week: calendarText.week,
+            day: calendarText.day,
+            today: calendarText.today,
         },
         navLinks: true,
         nextDayThreshold: '06:00:00',
