@@ -1,6 +1,7 @@
 import datetime
 import urllib.parse
 import zoneinfo
+from collections import defaultdict
 
 from django.shortcuts import render, redirect
 from django.forms.models import model_to_dict
@@ -13,11 +14,36 @@ from carpeCalendar.forms import EventForm, DateForm
 def home(request):
     return redirect('calendar')
 
+def category_tree():
+    # Categories as (category, children) pairs, with children nested the same way
+    children = defaultdict(list)
+    for category in Category.objects.order_by('name'):
+        children[category.parent_id].append(category)
+    seen = set()
+
+    def build(parent_id):
+        tree = []
+        for category in children[parent_id]:
+            # Guard against a category set as its own ancestor in the admin
+            if category.id not in seen:
+                seen.add(category.id)
+                tree.append((category, build(category.id)))
+        return tree
+
+    return build(None)
+
+def category_choices(tree=None, depth=0):
+    # Flattened tree for a <select>, children indented under their parent
+    choices = []
+    for category, children in (category_tree() if tree is None else tree):
+        choices.append((category.id, "\u00a0\u00a0\u00a0" * depth + ("↳ " if depth else "") + category.name))
+        choices += category_choices(children, depth + 1)
+    return choices
+
 def calendar(request):
     places = Place.objects.all()
-    categories = Category.objects.all()
     periods = list(AcademicPeriod.objects.values('name', 'start', 'end', 'numbered', 'first_week_number'))
-    return render(request, 'calendar.html', {'categories': categories, 'places': places, 'periods': periods})
+    return render(request, 'calendar.html', {'category_tree': category_tree(), 'places': places, 'periods': periods})
 
 def events(request):
     start = request.GET.get('start', None)
@@ -54,7 +80,7 @@ def create_qr_code(request):
     return render(request, 'create_qr_code.html')
 
 def add_event_page(request):
-    categories = list(Category.objects.values_list('name', flat=True))
+    categories = category_choices()
     places = list(Place.objects.exclude(name='Autre').values_list('name', flat=True))
     if request.method == 'POST':
         data = request.POST
@@ -65,13 +91,12 @@ def add_event_page(request):
             return render(request, 'add_event.html', {'status': 'error', 'messages': form.errors, 'categories': categories, 'places': places, "initial": data, "dates": list(zip(starts, ends)) or [("", "")]})
         try:
             location = form.cleaned_data['location']
-            category = form.cleaned_data['category']
             event = Event(
                 title=form.cleaned_data['title'],
                 description=form.cleaned_data['description'],
                 organizer=form.cleaned_data['organizer'],
                 location=form.cleaned_data['location'],
-                category=Category.objects.get(name=category),
+                category=form.cleaned_data['category'],
                 facebook_link=form.cleaned_data["facebook_link"],
                 email_organizer=form.cleaned_data["email_organizer"],
                 form_link=form.cleaned_data["form_link"],

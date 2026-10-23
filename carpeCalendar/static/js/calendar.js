@@ -47,6 +47,26 @@ function initPlaceColors() {
     }
 }
 
+// Checking a category checks all its subcategories, and a parent shows a partial state when only some are checked
+function updateSubcategories(checkbox) {
+    const children = checkbox.parentElement.querySelector(":scope > .category-children");
+    if (children) {
+        for (const child of children.querySelectorAll(".category-checkbox")) {
+            child.checked = checkbox.checked;
+            child.indeterminate = false;
+        }
+    }
+    let group = checkbox.closest(".category-children");
+    while (group) {
+        const parent = group.parentElement.querySelector(":scope > .category-checkbox");
+        const siblings = [...group.querySelectorAll(":scope > .form-check > .category-checkbox")];
+        const checkedCount = siblings.filter((sibling) => sibling.checked && !sibling.indeterminate).length;
+        parent.checked = checkedCount > 0 || siblings.some((sibling) => sibling.indeterminate);
+        parent.indeterminate = parent.checked && checkedCount < siblings.length;
+        group = parent.closest(".category-children");
+    }
+}
+
 function createCalendar() {
     const calendarEl = document.getElementById('calendar');
     const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -105,7 +125,7 @@ function createCalendar() {
             location.href = "/event/" + info.event.id;
         },
         eventDidMount: function(arg) {
-            const element = document.getElementById("checkbox-" + arg.event.extendedProps.category.name);
+            const element = document.getElementById("checkbox-category-" + arg.event.extendedProps.category.id);
             const placeElement = document.getElementById("checkbox-place-" + arg.event.extendedProps.saved_location.name);
             let display = false;
             let atLeastOneChecked = false;
@@ -153,8 +173,9 @@ function createCalendar() {
         },
     });
     calendar.render();
-    for (category of categories) {
-        document.getElementById("checkbox-" + category).addEventListener("change", function() {
+    for (const checkbox of document.querySelectorAll(".category-checkbox")) {
+        checkbox.addEventListener("change", function() {
+            updateSubcategories(checkbox);
             calendar.refetchEvents();
         });
     }

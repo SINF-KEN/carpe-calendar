@@ -82,8 +82,8 @@
                                 <div class="col-sm ms-md-1 mb-3">
                                     <label for="category" class="form-label required-label">Catégorie</label>
                                     <select name="category" id="category" class="form-select">
-                                        {% for category in categories %}
-                                            <option value="{{ category }}" {% if initial.category == category %}selected{% endif %}>{{ category }}</option>
+                                        {% for category_id, label in categories %}
+                                            <option value="{{ category_id }}" {% if initial.category == category_id|stringformat:"s" %}selected{% endif %}>{{ label }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>

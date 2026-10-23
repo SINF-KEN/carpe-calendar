@@ -106,3 +106,7 @@ body {
 .fc-theme-bootstrap5 .fc-list, .fc-theme-bootstrap5 .fc-scrollgrid, .fc-theme-bootstrap5 td, .fc-theme-bootstrap5 th {
     border: 1px solid var(--fc-border-color);
 }
+
+.category-children {
+    margin-left: 0.5rem;
+}

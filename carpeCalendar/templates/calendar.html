@@ -19,12 +19,7 @@
         </h2>
         <div id="collapse-categories" class="accordion-collapse collapse" data-bs-parent="sidebar-accordion" aria-labelledby="heading-categories" data-mdb-parent="#sidebar-accordion">
             <div class="accordion-body">
-                {% for category in categories %}
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" value="{{ category }}" name="{{ category }}" id="checkbox-{{ category }}" checked/>
-                    <label class="form-check-label" for="flexCheckChecked">{{ category }}</label>
-                </div>
-                {% endfor %}
+                {% include "category_filter.html" with tree=category_tree %}
             </div>
         </div>
     </section>
@@ -122,9 +117,7 @@
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.22/index.global.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/bootstrap5@6.1.22/index.global.min.js"></script>
 <script>
-    const categories = [];
     const places = [];
-    {% for category in categories %}categories.push("{{ category }}");{% endfor %}
     {% for place in places %}places.push("{{ place }}");{% endfor %}
 </script>
 {{ periods|json_script:"academic-periods" }}

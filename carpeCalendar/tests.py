@@ -50,7 +50,7 @@ class SmokeTests(TestCase):
             'title': 'New event',
             'organizer': 'Carpe',
             'location': 'Somewhere else',
-            'category': 'Soirée',
+            'category': self.category.id,
             'start': '2026-11-02T20:00',
             'end': '2026-11-02T23:00',
         })
@@ -65,3 +65,19 @@ class SmokeTests(TestCase):
 
     def test_admin_login_page(self):
         self.assertEqual(self.client.get('/admin/login/').status_code, 200)
+
+
+class CategoryTreeTests(TestCase):
+
+    def test_subcategories_are_nested_in_filters_and_form(self):
+        sport = Category.objects.create(name='Sport', description='')
+        Category.objects.create(name='Football', parent=sport, description='')
+        Category.objects.create(name='Concert', description='')
+
+        response = self.client.get('/calendar/')
+        tree = [(category.name, [child.name for child, _ in children]) for category, children in response.context['category_tree']]
+        self.assertEqual(tree, [('Concert', []), ('Sport', ['Football'])])
+
+        response = self.client.get('/add-event')
+        labels = [label for _, label in response.context['categories']]
+        self.assertEqual(labels, ['Concert', 'Sport', '\u00a0\u00a0\u00a0↳ Football'])
