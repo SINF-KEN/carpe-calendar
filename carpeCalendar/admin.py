@@ -1,4 +1,6 @@
 from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from unfold.admin import ModelAdmin
 
 from .models import Event
@@ -12,7 +14,9 @@ class EventAdmin(ModelAdmin):
     list_editable = ["validated"]
     list_filter = ["validated", "category", "created_at", "updated_at"]
     search_fields = ["title", "location"]
-    actions = ["validate_selected_events", "invalidate_selected_events"]
+    actions = ["validate_selected_events", "invalidate_selected_events", "renew_edit_links"]
+    readonly_fields = ["edit_link"]
+    exclude = ["edit_token"]
     list_per_page = 10
 
     @admin.action(description="Validate selected events")
@@ -22,6 +26,20 @@ class EventAdmin(ModelAdmin):
     @admin.action(description="Invalidate selected events")
     def invalidate_selected_events(self, request, queryset):
         queryset.update(validated=False)
+
+    @admin.action(description="Create a new organizer edit link")
+    def renew_edit_links(self, request, queryset):
+        for event in queryset:
+            event.renew_edit_token()
+            event.save(update_fields=["edit_token", "edit_token_expires_at"])
+
+    @admin.display(description="Organizer edit link")
+    def edit_link(self, obj):
+        # Send this link to an organizer who lost theirs; use the "new edit link" action if it expired
+        if not obj.edit_token:
+            return "-"
+        url = reverse("edit_event", args=[obj.id, obj.edit_token])
+        return format_html('<a href="{}">{}</a> (expires {})', url, url, obj.edit_token_expires_at)
 
     def get_dates(self, obj):
         return "|\n".join([str(date) for date in obj.eventdates_set.all()])

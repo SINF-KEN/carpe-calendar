@@ -43,6 +43,12 @@ You need to configure two environment variables:
 - `DJANGO_DEBUG`: Set to `0` for production, or `1` for development (debug mode).
 - `DJANGO_SECRET_KEY`: Define your secret key for Django.
 
+Optional, to email organizers the link to edit their event (no email is sent if `EMAIL_HOST` is empty):
+
+- `EMAIL_HOST`, `EMAIL_PORT` (default `587`), `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` (default `1`)
+- `DEFAULT_FROM_EMAIL`: sender address of the emails
+- `EVENT_EDIT_LINK_DAYS`: number of days the edit link stays valid (default `30`)
+
 ## Running the Project
 
 To start the development server, use:

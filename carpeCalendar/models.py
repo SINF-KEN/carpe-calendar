@@ -1,5 +1,10 @@
+import datetime
+import secrets
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils import timezone
 
 class Event(models.Model):
     title = models.CharField(max_length=200)
@@ -20,6 +25,21 @@ class Event(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     validated = models.BooleanField(default=False)
+    # Secret link sent to the organizer so they can edit the event for a limited time
+    edit_token = models.CharField(max_length=64, blank=True, db_index=True)
+    edit_token_expires_at = models.DateTimeField(null=True, blank=True)
+
+    def renew_edit_token(self):
+        self.edit_token = secrets.token_urlsafe(32)
+        self.edit_token_expires_at = timezone.now() + datetime.timedelta(days=settings.EVENT_EDIT_LINK_DAYS)
+
+    def edit_token_is_valid(self, token):
+        return (
+            bool(self.edit_token)
+            and secrets.compare_digest(self.edit_token, token)
+            and self.edit_token_expires_at is not None
+            and timezone.now() < self.edit_token_expires_at
+        )
 
     def __str__(self):
         return self.title

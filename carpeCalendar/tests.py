@@ -4,7 +4,9 @@ from unittest import mock
 
 import icalendar
 
-from django.test import TestCase
+from django.core import mail
+from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from carpeCalendar.models import Event, EventDates, Category, Place
 
@@ -123,3 +125,70 @@ class IcsTests(TestCase):
         response = self.client.get('/calendar.ics')
         calendar = icalendar.Calendar.from_ical(response.content)
         self.assertEqual([str(event['summary']) for event in calendar.walk('VEVENT')], ['Concert, jazz'])
+
+
+class EditLinkTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.category = Category.objects.create(name='Soirée', description='')
+        Place.objects.create(name='Autre')
+
+    def submit(self, url, **fields):
+        data = {
+            'title': 'Quiz',
+            'organizer': 'Carpe',
+            'location': 'Aula Magna',
+            'category': self.category.id,
+            'email_organizer': 'orga@example.com',
+            'start': '2026-11-02T20:00',
+            'end': '2026-11-02T23:00',
+        } | fields
+        return self.client.post(url, data)
+
+    @override_settings(EMAIL_HOST='smtp.example.com')
+    def test_new_event_gets_an_edit_link_by_email(self):
+        response = self.submit('/add-event')
+        event = Event.objects.get(title='Quiz')
+        self.assertTrue(event.edit_token)
+        self.assertAlmostEqual(event.edit_token_expires_at, timezone.now() + datetime.timedelta(days=30), delta=datetime.timedelta(minutes=1))
+        edit_url = f'/event/{event.id}/edit/{event.edit_token}'
+        self.assertContains(response, edit_url)
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertEqual(mail.outbox[0].to, ['orga@example.com'])
+        self.assertIn(edit_url, mail.outbox[0].body)
+
+    def test_no_email_without_email_server(self):
+        self.submit('/add-event')
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_organizer_edits_event(self):
+        self.submit('/add-event')
+        event = Event.objects.get(title='Quiz')
+        event.validated = True
+        event.save()
+        edit_url = f'/event/{event.id}/edit/{event.edit_token}'
+
+        response = self.client.get(edit_url)
+        self.assertContains(response, 'value="Quiz"')
+        self.assertContains(response, 'value="2026-11-02T20:00"')
+
+        response = self.submit(edit_url, title='Quiz musical', start='2026-11-03T20:00', end='2026-11-03T22:00')
+        self.assertContains(response, 'Vos modifications ont été enregistrées')
+        event.refresh_from_db()
+        self.assertEqual(event.title, 'Quiz musical')
+        self.assertFalse(event.validated)
+        self.assertEqual([date.start for date in event.eventdates_set.all()], [datetime.datetime(2026, 11, 3, 20, 0, tzinfo=BRUSSELS)])
+        self.assertEqual(Event.objects.count(), 1)
+
+    def test_wrong_or_expired_token_is_refused(self):
+        self.submit('/add-event')
+        event = Event.objects.get(title='Quiz')
+        self.assertEqual(self.client.get(f'/event/{event.id}/edit/wrong').status_code, 403)
+
+        event.edit_token_expires_at = timezone.now() - datetime.timedelta(seconds=1)
+        event.save()
+        self.assertEqual(self.client.get(f'/event/{event.id}/edit/{event.edit_token}').status_code, 403)
+        response = self.submit(f'/event/{event.id}/edit/{event.edit_token}', title='Hacked')
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Event.objects.filter(title='Hacked').exists())

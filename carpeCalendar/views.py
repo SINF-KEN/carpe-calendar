@@ -4,6 +4,9 @@ import zoneinfo
 from collections import defaultdict
 
 import icalendar
+from django.conf import settings
+from django.core.mail import send_mail
+from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
 from django.forms.models import model_to_dict
 from django.http import JsonResponse, HttpResponse
@@ -12,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from carpeCalendar.models import Event, EventDates, Category, Place, AcademicPeriod
-from carpeCalendar.forms import EventForm, DateForm
+from carpeCalendar.forms import EventForm
 
 def home(request):
     return redirect('calendar')
@@ -128,47 +131,109 @@ def event_ics(request, event_id):
 def create_qr_code(request):
     return render(request, 'create_qr_code.html')
 
+EVENT_FIELDS = [
+    'title', 'description', 'organizer', 'location', 'category', 'facebook_link', 'email_organizer', 'form_link',
+    'pmr_friendly', 'deaf_friendly', 'blind_friendly', 'neurodiversity_friendly', 'granz_filled',
+]
+BRUSSELS = zoneinfo.ZoneInfo('Europe/Brussels')
+
+def save_event(event, form, starts, ends):
+    # Save the form's fields and replace the event's dates, all or nothing
+    for field in EVENT_FIELDS:
+        setattr(event, field, form.cleaned_data[field])
+    location = form.cleaned_data['location']
+    event.saved_location = Place.objects.filter(name__iexact=location).first() or Place.objects.get(name='Autre')
+    dates = [
+        (datetime.datetime.strptime(start, '%Y-%m-%dT%H:%M').replace(tzinfo=BRUSSELS),
+         datetime.datetime.strptime(end, '%Y-%m-%dT%H:%M').replace(tzinfo=BRUSSELS))
+        for start, end in zip(starts, ends)
+    ]
+    if not dates:
+        raise ValueError("An event needs at least one date")
+    with transaction.atomic():
+        event.save()
+        event.eventdates_set.all().delete()
+        EventDates.objects.bulk_create([EventDates(event=event, start=start, end=end) for start, end in dates])
+
+def edit_url(request, event):
+    return request.build_absolute_uri(reverse('edit_event', args=[event.id, event.edit_token]))
+
+def send_edit_link(request, event):
+    if not (event.email_organizer and settings.EMAIL_HOST):
+        return
+    expires = timezone.localtime(event.edit_token_expires_at, BRUSSELS).strftime('%d/%m/%Y')
+    send_mail(
+        f"Votre événement « {event.title} » sur l'Agenda du Carpe",
+        f"Bonjour,\n\n"
+        f"Merci d'avoir ajouté « {event.title} » à l'Agenda du Carpe. Il sera visible dès qu'il aura été validé.\n\n"
+        f"Pour le modifier jusqu'au {expires}, utilisez ce lien (ne le partagez pas) :\n{edit_url(request, event)}\n\n"
+        f"L'équipe du CarpeStudentem",
+        None,
+        [event.email_organizer],
+        fail_silently=True,
+    )
+
+def event_form_values(event):
+    # Form values of a saved event, in the same shape as submitted data: strings, with empty fields as ""
+    initial = model_to_dict(event, fields=EVENT_FIELDS)
+    dates = [
+        (timezone.localtime(date.start, BRUSSELS).strftime('%Y-%m-%dT%H:%M'), timezone.localtime(date.end, BRUSSELS).strftime('%Y-%m-%dT%H:%M'))
+        for date in event.eventdates_set.order_by('start')
+    ]
+    return {
+        'initial': {key: '' if value is None else str(value) if key == 'category' else value for key, value in initial.items()},
+        'dates': dates or [('', '')],
+    }
+
+def event_form_page(request, event=None):
+    # Shared by adding an event and by the organizer editing it through their edit link
+    context = {
+        'categories': category_choices(),
+        'places': list(Place.objects.exclude(name='Autre').values_list('name', flat=True)),
+        'editing': event is not None,
+        'dates': [('', '')],
+    }
+    if request.method != 'POST':
+        if event is not None:
+            context |= event_form_values(event)
+        return render(request, 'add_event.html', context)
+
+    data = request.POST
+    starts = data.getlist('start')
+    ends = data.getlist('end')
+    form = EventForm(data)
+    error_context = context | {'status': 'error', 'initial': data, 'dates': list(zip(starts, ends)) or [('', '')]}
+    if not form.is_valid():
+        return render(request, 'add_event.html', error_context | {'messages': form.errors})
+
+    is_new = event is None
+    if is_new:
+        event = Event()
+        event.renew_edit_token()
+    # Organizer changes are reviewed again before they are published
+    event.validated = False
+    try:
+        save_event(event, form, starts, ends)
+    except Exception as e:
+        print(e)
+        return render(request, 'add_event.html', error_context)
+
+    if is_new:
+        send_edit_link(request, event)
+    else:
+        context |= event_form_values(event)
+    return render(request, 'add_event.html', context | {
+        'status': 'success' if is_new else 'updated',
+        'edit_url': edit_url(request, event),
+        'edit_expires_at': event.edit_token_expires_at,
+        **model_to_dict(event),
+    })
+
 def add_event_page(request):
-    categories = category_choices()
-    places = list(Place.objects.exclude(name='Autre').values_list('name', flat=True))
-    if request.method == 'POST':
-        data = request.POST
-        starts = data.getlist('start')
-        ends = data.getlist('end')
-        form = EventForm(data)
-        if not form.is_valid():
-            return render(request, 'add_event.html', {'status': 'error', 'messages': form.errors, 'categories': categories, 'places': places, "initial": data, "dates": list(zip(starts, ends)) or [("", "")]})
-        try:
-            location = form.cleaned_data['location']
-            event = Event(
-                title=form.cleaned_data['title'],
-                description=form.cleaned_data['description'],
-                organizer=form.cleaned_data['organizer'],
-                location=form.cleaned_data['location'],
-                category=form.cleaned_data['category'],
-                facebook_link=form.cleaned_data["facebook_link"],
-                email_organizer=form.cleaned_data["email_organizer"],
-                form_link=form.cleaned_data["form_link"],
-                pmr_friendly=form.cleaned_data["pmr_friendly"],
-                deaf_friendly=form.cleaned_data["deaf_friendly"],
-                blind_friendly=form.cleaned_data["blind_friendly"],
-                neurodiversity_friendly=form.cleaned_data["neurodiversity_friendly"],
-                granz_filled=form.cleaned_data["granz_filled"],
-            )
-            event.saved_location = Place.objects.get(name__iexact=location) if Place.objects.filter(name__iexact=location).exists() else Place.objects.get(name='Autre')
-            event.save()
-            for start_time, end_time in zip(starts, ends):
-                start_datetime = datetime.datetime.strptime(start_time, '%Y-%m-%dT%H:%M').replace(tzinfo=zoneinfo.ZoneInfo('Europe/Brussels'))
-                end_datetime = datetime.datetime.strptime(end_time, '%Y-%m-%dT%H:%M').replace(tzinfo=zoneinfo.ZoneInfo('Europe/Brussels'))
-                date = EventDates(event=event, start=start_datetime, end=end_datetime)
-                date.save()
+    return event_form_page(request)
 
-
-        except Exception as e:
-            print(e)
-            return render(request, 'add_event.html', {'status': 'error', 'categories': categories, 'places': places, "initial": data, "dates": list(zip(starts, ends)) or [("", "")]})
-        return render(request, 'add_event.html', {'status': 'success', 'categories': categories, 'places': places, 'dates': [('', '')], **model_to_dict(event)})
-
-    form = EventForm()
-    date_form = DateForm()
-    return render(request, 'add_event.html', {'categories': categories, 'places': places, 'form': form, 'date_form': date_form, 'dates': [('', '')]})
+def edit_event(request, event_id, token):
+    event = get_object_or_404(Event, id=event_id)
+    if not event.edit_token_is_valid(token):
+        return render(request, 'edit_link_invalid.html', status=403)
+    return event_form_page(request, event)

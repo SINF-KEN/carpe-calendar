@@ -11,5 +11,6 @@ urlpatterns = [
     path('calendar.ics', views.calendar_ics, name='calendar_ics'),
     path('events/', views.events, name='events'),
     path('add-event', views.add_event_page, name='add_event'),
+    path('event/<int:event_id>/edit/<str:token>', views.edit_event, name='edit_event'),
     path('create-qr-code', views.create_qr_code, name='create_qr_code'),
 ]

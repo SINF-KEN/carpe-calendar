@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+
+{% block stylesheets %}
+    {% load static %}
+    <link href="{% static 'css/add_event.css' %}" type="text/css" rel="stylesheet"/>
+{% endblock %}
+
+{% block sidebar-content %}
+<div class="sidebar-link">
+    <a href="{% url 'calendar' %}">Agenda</a>
+</div>
+<hr class="hr" />
+{% endblock %}
+
+{% block body %}
+<div class="container-event-form">
+    <div class="alert alert-warning" role="alert">
+        Ce lien de modification n'est pas valide ou a expiré.
+        Contactez le <a href="https://www.carpestudentem.be">CarpeStudentem</a> pour recevoir un nouveau lien.
+    </div>
+</div>
+{% endblock %}

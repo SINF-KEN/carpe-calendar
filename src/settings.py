@@ -135,6 +135,18 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 
+# Email, used to send organizers the link to edit their event. No email is sent when EMAIL_HOST is empty.
+EMAIL_HOST = os.environ.get("EMAIL_HOST", "")
+EMAIL_PORT = int(os.environ.get("EMAIL_PORT", 587))
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "")
+EMAIL_USE_TLS = bool(int(os.environ.get("EMAIL_USE_TLS", 1)))
+DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", EMAIL_HOST_USER or "webmaster@localhost")
+
+# Number of days the organizer's edit link stays valid
+EVENT_EDIT_LINK_DAYS = int(os.environ.get("EVENT_EDIT_LINK_DAYS", 30))
+
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
 

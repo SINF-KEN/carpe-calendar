@@ -33,11 +33,26 @@
         <div class="alert alert-success" role="alert">
             Votre demande d'ajout d'évènement à été effectué avec succès ! Celui-ci sera ajouté dès qu'il aura été validé.<br>
             Créez des qr codes pour vos évènements, pour les payements <a href="/create-qr-code">ici</a> <br>
+            <p class="mt-2 mb-0">
+                Pour modifier votre événement jusqu'au {{ edit_expires_at|date:"j F Y" }}, gardez ce lien et ne le partagez pas :<br>
+                <a href="{{ edit_url }}" class="text-break">{{ edit_url }}</a>
+                {% if email_organizer %}<br>Il vous a aussi été envoyé par email.{% endif %}
+            </p>
             <div class="qr-codes">
                 <div id="qr-code-carpe"></div>
                 <div id="qr-code-facebook"></div>
                 <div id="qr-code-form"></div>
             </div>
+        </div>
+    {% endif %}
+    {% if status == "updated" %}
+        <div class="alert alert-success" role="alert">
+            Vos modifications ont été enregistrées. L'événement sera de nouveau visible dès qu'il aura été validé.<br>
+            Ce lien de modification reste valable jusqu'au {{ edit_expires_at|date:"j F Y" }}.
+        </div>
+    {% elif editing and not status %}
+        <div class="alert alert-info" role="alert">
+            Vous modifiez votre événement. Après enregistrement, il sera de nouveau vérifié par notre équipe avant d'être publié.
         </div>
     {% endif %}
     {% if status == "error" %}
@@ -189,7 +204,7 @@
                     </div>
                 </div>
             </div>
-            <button type="submit" id="submit-event" class="btn btn-primary ">Ajouter</button>
+            <button type="submit" id="submit-event" class="btn btn-primary ">{% if editing %}Enregistrer les modifications{% else %}Ajouter{% endif %}</button>
         </form>
     </div>
 {% endblock %}
