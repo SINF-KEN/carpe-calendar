@@ -39,6 +39,12 @@ class SmokeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual([event['title'] for event in response.json()], ['Validated event'])
 
+    def test_events_without_saved_location(self):
+        self.event.saved_location = None
+        self.event.save()
+        response = self.client.get('/events/', {'start': '2026-10-19T00:00:00+02:00', 'end': '2026-10-26T00:00:00+01:00'})
+        self.assertEqual(response.json()[0]['saved_location'], {'name': 'Autre'})
+
     def test_event_page(self):
         response = self.client.get(f'/event/{self.event.id}/')
         self.assertEqual(response.status_code, 200)

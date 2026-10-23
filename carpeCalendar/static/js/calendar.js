@@ -2,15 +2,18 @@ const colors = {};
 
 const accessibilityList = ["blind_friendly", "deaf_friendly", "pmr_friendly", "neurodiversity_friendly"];
 
-const randomColors = [
-    "#E8ADB6",
-    "#CBADCC",
-    "#A0ACC6",
-    "#F75A3B",
-    "#3F4EB5",
-    "#8AC7AD",
-    "#8AC7AD",
-    "#9F63C4",
+// Each place always gets the same color, picked from its name
+const placeColors = [
+    "#C52224",
+    "#1F77B4",
+    "#2CA02C",
+    "#9467BD",
+    "#FF7F0E",
+    "#17BECF",
+    "#8C564B",
+    "#E377C2",
+    "#BCBD22",
+    "#7F7F7F",
 ];
 
 // UCLouvain week system, edited in the admin (AcademicPeriod)
@@ -39,9 +42,17 @@ const getWeekNumber = (d) => {
     return period.name + (period.first_week_number + weeks).toString();
 }
 
+function placeColor(name) {
+    let hash = 0;
+    for (const char of name) {
+        hash = (hash * 31 + char.codePointAt(0)) | 0;
+    }
+    return placeColors[Math.abs(hash) % placeColors.length];
+}
+
 function initPlaceColors() {
     for (place of places) {
-        colors[place] = randomColors[Math.floor(Math.random() * randomColors.length)];
+        colors[place] = placeColor(place);
         const dot = document.getElementById("dot-" + place);
         dot.style.backgroundColor = colors[place];
     }
@@ -111,11 +122,10 @@ function createCalendar() {
             calendar.changeView('dayGridDay', date.toISOString());
         },
         height: 'auto',
-        eventBorderColor: 'black',
         titleFormat: { day: 'numeric', year: 'numeric', month: 'long' },
         eventTimeFormat: { hour: 'numeric', minute: '2-digit', hour12: false },
         eventDisplay: 'block',
-        eventBorderColor: 'gray',
+        displayEventEnd: true,
         eventSources : [
             {
                 url: "/events",
@@ -123,6 +133,26 @@ function createCalendar() {
         ],
         eventClick: function(info) {
             location.href = "/event/" + info.event.id;
+        },
+        eventClassNames: 'carpe-event',
+        eventContent: function(arg) {
+            if (arg.view.type.startsWith("list")) {
+                return true;
+            }
+            const block = document.createElement("div");
+            block.className = "event-block";
+            const time = document.createElement("div");
+            time.className = "event-block-time";
+            time.textContent = arg.timeText;
+            const title = document.createElement("div");
+            title.className = "event-block-title";
+            title.textContent = arg.event.title;
+            const place = document.createElement("div");
+            place.className = "event-block-location";
+            place.innerHTML = '<i class="fa-solid fa-location-dot"></i> ';
+            place.append(arg.event.extendedProps.location);
+            block.append(time, title, place);
+            return { domNodes: [block] };
         },
         eventDidMount: function(arg) {
             const element = document.getElementById("checkbox-category-" + arg.event.extendedProps.category.id);
@@ -137,30 +167,27 @@ function createCalendar() {
                 }
             }
             display |= !atLeastOneChecked;
-            display &= (element.checked && placeElement.checked);
+            display &= (element.checked && (placeElement?.checked ?? true));
             if (!display) {
                 arg.el.style.display = "none";
             }
 
+            const color = colors[arg.event.extendedProps.saved_location.name] ?? placeColor(arg.event.extendedProps.saved_location.name);
+            arg.el.style.setProperty("--event-color", color);
             const dotEl = arg.el.getElementsByClassName('fc-list-event-dot')[0];
             if (dotEl) {
-                dotEl.style.borderColor = colors[arg.event.extendedProps.saved_location.name];
-                // dotEl.style.backgroundColor = colors[arg.event.extendedProps.saved_location.name];
-            }
-            else {
-                arg.el.style.backgroundColor = colors[arg.event.extendedProps.saved_location.name];
-            }
-
-            if (screen.width > 900 && arg.view.type !== "listMonth") {
-                const span = document.createElement("span");
-                span.textContent = "📍" + arg.event.extendedProps.location;
-                arg.el.getElementsByClassName("fc-event-main-frame")[0].append(span);
+                dotEl.style.borderColor = color;
+                const listTitle = arg.el.querySelector(".fc-list-event-title");
+                const listLocation = document.createElement("span");
+                listLocation.className = "event-list-location";
+                listLocation.textContent = arg.event.extendedProps.location;
+                listTitle.append(listLocation);
             }
             arg.el.style.cursor = "pointer";
 
             if (window.matchMedia("(hover: hover)").matches) {
                 const tooltip = document.createElement("div");
-                for (const line of [arg.event.title, "📍" + arg.event.extendedProps.location, arg.event.extendedProps.organizer]) {
+                for (const line of [arg.event.title, "📍" + arg.event.extendedProps.location, arg.event.extendedProps.category.name + " · " + arg.event.extendedProps.organizer]) {
                     const lineEl = document.createElement("div");
                     lineEl.textContent = line;
                     tooltip.append(lineEl);
