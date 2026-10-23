@@ -1,4 +1,5 @@
 import datetime
+import urllib.parse
 import zoneinfo
 
 from django.shortcuts import render, redirect
@@ -6,7 +7,7 @@ from django.forms.models import model_to_dict
 from django.http import JsonResponse
 from django.db.models import Q
 
-from carpeCalendar.models import Event, EventDates, Category, Place
+from carpeCalendar.models import Event, EventDates, Category, Place, AcademicPeriod
 from carpeCalendar.forms import EventForm, DateForm
 
 def home(request):
@@ -15,7 +16,8 @@ def home(request):
 def calendar(request):
     places = Place.objects.all()
     categories = Category.objects.all()
-    return render(request, 'calendar.html', {'categories': categories, 'places': places})
+    periods = list(AcademicPeriod.objects.values('name', 'start', 'end', 'numbered', 'first_week_number'))
+    return render(request, 'calendar.html', {'categories': categories, 'places': places, 'periods': periods})
 
 def events(request):
     start = request.GET.get('start', None)
@@ -35,20 +37,32 @@ def event(request, event_id):
     if event.validated == False:
         return render(request, 'event.html', {'status': 403})
     dates = EventDates.objects.filter(event=event)
-    return render(request, 'event.html', {'event': event, 'dates': dates})
+    return render(request, 'event.html', {'event': event, 'dates': dates, 'map_url': map_url(event)})
+
+def map_url(event):
+    # Google Maps search links open the maps app on phones
+    place = event.saved_location
+    if place and place.latitude is not None and place.longitude is not None:
+        query = f"{place.latitude},{place.longitude}"
+    elif place and place.address:
+        query = place.address
+    else:
+        query = f"{event.location}, Louvain-la-Neuve"
+    return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
 
 def create_qr_code(request):
     return render(request, 'create_qr_code.html')
 
 def add_event_page(request):
     categories = list(Category.objects.values_list('name', flat=True))
+    places = list(Place.objects.exclude(name='Autre').values_list('name', flat=True))
     if request.method == 'POST':
         data = request.POST
         starts = data.getlist('start')
         ends = data.getlist('end')
         form = EventForm(data)
         if not form.is_valid():
-            return render(request, 'add_event.html', {'status': 'error', 'messages': form.errors, 'categories': categories, "initial": data})
+            return render(request, 'add_event.html', {'status': 'error', 'messages': form.errors, 'categories': categories, 'places': places, "initial": data, "dates": list(zip(starts, ends)) or [("", "")]})
         try:
             location = form.cleaned_data['location']
             category = form.cleaned_data['category']
@@ -78,9 +92,9 @@ def add_event_page(request):
 
         except Exception as e:
             print(e)
-            return render(request, 'add_event.html', {'status': 'error', 'categories': categories})
-        return render(request, 'add_event.html', {'status': 'success', 'categories': categories, **model_to_dict(event)})
+            return render(request, 'add_event.html', {'status': 'error', 'categories': categories, 'places': places, "initial": data, "dates": list(zip(starts, ends)) or [("", "")]})
+        return render(request, 'add_event.html', {'status': 'success', 'categories': categories, 'places': places, 'dates': [('', '')], **model_to_dict(event)})
 
     form = EventForm()
     date_form = DateForm()
-    return render(request, 'add_event.html', {'categories': categories, 'form': form, 'date_form': date_form})
+    return render(request, 'add_event.html', {'categories': categories, 'places': places, 'form': form, 'date_form': date_form, 'dates': [('', '')]})

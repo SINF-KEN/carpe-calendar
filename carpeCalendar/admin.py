@@ -5,6 +5,7 @@ from .models import Event
 from .models import EventDates
 from .models import Category
 from .models import Place
+from .models import AcademicPeriod
 
 class EventAdmin(ModelAdmin):
     list_display = ['title', 'location', 'saved_location', 'organizer', 'category', 'validated', 'get_dates', 'form_link', 'facebook_link', 'email_organizer', 'created_at']
@@ -41,7 +42,12 @@ class PlaceAdmin(ModelAdmin):
     list_display = ['name', 'address', 'latitude', 'longitude']
     list_editable = ['address', 'latitude', 'longitude']
 
+class AcademicPeriodAdmin(ModelAdmin):
+    list_display = ['name', 'start', 'end', 'numbered', 'first_week_number']
+    list_filter = ['name']
+
 admin.site.register(Event, EventAdmin)
 admin.site.register(EventDates, EventDatesAdmin)
 admin.site.register(Category, CategoryAdmin)
 admin.site.register(Place, PlaceAdmin)
+admin.site.register(AcademicPeriod, AcademicPeriodAdmin)

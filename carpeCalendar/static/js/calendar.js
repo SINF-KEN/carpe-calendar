@@ -13,38 +13,30 @@ const randomColors = [
     "#9F63C4",
 ];
 
+// UCLouvain week system, edited in the admin (AcademicPeriod)
+const academicPeriods = JSON.parse(document.getElementById("academic-periods").textContent).map((period) => ({
+    ...period,
+    start: parseLocalDate(period.start),
+    end: parseLocalDate(period.end),
+}));
+
+function parseLocalDate(isoDate) {
+    const [year, month, day] = isoDate.split("-").map(Number);
+    return new Date(year, month - 1, day);
+}
+
 const getWeekNumber = (d) => {
-    // https://stackoverflow.com/a/27125580
-    // For 2024; no general solution....
-    // UCLouvain weeksystem change every year impossible to have a general rule
-    // Replace this by a dictionary?
-    const onejan = new Date(d.getFullYear(), 0, 1);
-    const dayOfYear = ((d - onejan + 86400000) / 86400000);
-    const week = Math.ceil((dayOfYear + onejan.getDay() - 2) / 7);
-    if (d.getFullYear() === 2024) {
-        if (37 <= week && week <= 37 + 14) {
-            return "S" + (week - 37).toString();
-        }
-        if (week <= 37 + 14 + 2) {
-            return "Blocus";
-        }
+    const day = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const period = academicPeriods.find((p) => p.start <= day && day <= p.end);
+    if (!period) {
+        return "-";
     }
-    if (d.getFullYear() === 2025) {
-        if ((2 <= week && week <= 4) || (5 + 13 + 2 + 2 < week && week <= 5 + 13 + 2 + 2 + 4)) {
-            return "Examens";
-        }
-        if ((5 + 13 + 2 < week && week <= 5 + 13 + 2 + 2)) {
-            return "Blocus";
-        }
-        if (week == 5 || (5 + 11 < week && week <= 5 + 11 + 2)) {
-            return "Congé";
-        }
-        if (week <= 5 + 13 + 2) {
-            const substract = week <= 5 + 11 ? 5 : 7;
-            return "S" + (week - substract).toString();
-        }
+    if (!period.numbered) {
+        return period.name;
     }
-    return "-";
+    // Round to absorb daylight saving time shifts
+    const weeks = Math.floor(Math.round((day - period.start) / 86400000) / 7);
+    return period.name + (period.first_week_number + weeks).toString();
 }
 
 function initPlaceColors() {
@@ -145,6 +137,19 @@ function createCalendar() {
                 arg.el.getElementsByClassName("fc-event-main-frame")[0].append(span);
             }
             arg.el.style.cursor = "pointer";
+
+            if (window.matchMedia("(hover: hover)").matches) {
+                const tooltip = document.createElement("div");
+                for (const line of [arg.event.title, "📍" + arg.event.extendedProps.location, arg.event.extendedProps.organizer]) {
+                    const lineEl = document.createElement("div");
+                    lineEl.textContent = line;
+                    tooltip.append(lineEl);
+                }
+                new mdb.Tooltip(arg.el, { title: tooltip, html: true, placement: "top" });
+            }
+        },
+        eventWillUnmount: function(arg) {
+            mdb.Tooltip.getInstance(arg.el)?.dispose();
         },
     });
     calendar.render();

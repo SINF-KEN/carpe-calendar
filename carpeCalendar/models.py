@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 class Event(models.Model):
@@ -48,3 +49,21 @@ class Place(models.Model):
 
     def __str__(self):
         return self.name
+
+class AcademicPeriod(models.Model):
+    # A labelled range of weeks in the UCLouvain calendar, shown as the calendar's week number
+    name = models.CharField(max_length=50, help_text='Label shown for each week, e.g. "S", "Blocus", "Examens", "Congé"')
+    start = models.DateField(help_text="Monday of the first week")
+    end = models.DateField(help_text="Last day of the last week")
+    numbered = models.BooleanField(default=False, help_text='Append a week number to the name ("S" becomes "S1", "S2", ...)')
+    first_week_number = models.PositiveSmallIntegerField(default=1, help_text="Number of the first week when numbered")
+
+    class Meta:
+        ordering = ['start']
+
+    def clean(self):
+        if self.start and self.end and self.start > self.end:
+            raise ValidationError("End date must be after start date")
+
+    def __str__(self):
+        return f"{self.name} ({self.start} - {self.end})"

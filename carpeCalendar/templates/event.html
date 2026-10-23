@@ -33,7 +33,7 @@
     <div class="jumbotron">
         <h1 class="display-4">{{ event.title }}</h1>
         <div>
-            <p class="lead">Lieu: {{ event.location }}</p>
+            <p class="lead">Lieu: {{ event.location }} <a href="{{ map_url }}" target="_blank" rel="noopener"><i class="fa-solid fa-map-location-dot"></i> Voir sur la carte</a></p>
         </div>
         <div>
             <p class="lead">Catégorie: {{ event.category }}</p>

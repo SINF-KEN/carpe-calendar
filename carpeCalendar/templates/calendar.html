@@ -127,6 +127,7 @@
     {% for category in categories %}categories.push("{{ category }}");{% endfor %}
     {% for place in places %}places.push("{{ place }}");{% endfor %}
 </script>
+{{ periods|json_script:"academic-periods" }}
 {% load static %}
 <script src="{% static 'js/calendar.js' %}"></script>
 {% endblock %}

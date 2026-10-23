@@ -72,28 +72,48 @@
                             <div class="row mb-3">
                                 <div class="col-sm mb-3">
                                     <label for="location" class="form-label required-label">Lieu</label>
-                                    <input type="text" name="location" id="location" class="form-control" value="{{ initial.value }}" placeholder="La grande casa">
+                                    <input type="text" name="location" id="location" class="form-control" value="{{ initial.location }}" placeholder="La grande casa" list="places-list" autocomplete="off">
+                                    <datalist id="places-list">
+                                        {% for place in places %}
+                                            <option value="{{ place }}">
+                                        {% endfor %}
+                                    </datalist>
                                 </div>
                                 <div class="col-sm ms-md-1 mb-3">
                                     <label for="category" class="form-label required-label">Catégorie</label>
                                     <select name="category" id="category" class="form-select">
                                         {% for category in categories %}
-                                            <option value="{{ category }}">{{ category }}</option>
+                                            <option value="{{ category }}" {% if initial.category == category %}selected{% endif %}>{{ category }}</option>
                                         {% endfor %}
                                     </select>
                                 </div>
                             </div>
                             <div id="dates-container">
-                                <div class="row mb-3">
-                                    <div class="col-sm mb-3">
-                                        <label for="start" class="form-label required-label">Début</label>
-                                        <input type="datetime-local" name="start" id="start" class="form-control" required>
+                                {% for start, end in dates %}
+                                    {% if forloop.first %}
+                                    <div class="row mb-3">
+                                        <div class="col-sm mb-3">
+                                            <label for="start" class="form-label required-label">Début</label>
+                                            <input type="datetime-local" name="start" id="start" class="form-control" value="{{ start }}" required>
+                                        </div>
+                                        <div class="col-sm ms-md-1 mb-3">
+                                            <label for="end" class="form-label required-label">Fin</label>
+                                            <input type="datetime-local" name="end" id="end" class="form-control" value="{{ end }}" required>
+                                        </div>
                                     </div>
-                                    <div class="col-sm ms-md-1 mb-3">
-                                        <label for="end" class="form-label required-label">Fin</label>
-                                        <input type="datetime-local" name="end" id="end" class="form-control" required>
+                                    {% else %}
+                                    <div class="mb-3 form-row align-items-center date-form-container">
+                                        <div class="col-sm-3 my-1">
+                                            <label class="form-label">Début</label>
+                                            <input type="datetime-local" name="start" class="form-control" value="{{ start }}">
+                                        </div>
+                                        <div class="col-sm-3 my-1">
+                                            <label class="form-label">Fin</label>
+                                            <input type="datetime-local" name="end" class="form-control" value="{{ end }}">
+                                        </div>
                                     </div>
-                                </div>
+                                    {% endif %}
+                                {% endfor %}
                             </div>
                             <div class="mb-3">
                                 <button type="button" id="add-date" class="btn btn-primary">Ajouter une autre date</button>
@@ -112,7 +132,7 @@
                         <div class="accordion-body">
                             <div class="mb-3 col">
                                 <label for="description" class="form-label">Description</label>
-                                <textarea name="description" rows="6" class="form-control" id="description" value="{{ initial.description }}" placeholder="Mon événement..."></textarea>
+                                <textarea name="description" rows="6" class="form-control" id="description" placeholder="Mon événement...">{{ initial.description }}</textarea>
                             </div>
                             <div class="row">
                                 <div class="col-sm mb-3">
@@ -141,7 +161,7 @@
                     <div id="collapse-accessibility" class="accordion-collapse collapse" aria-labelledby="heading-accessibility" data-bs-parent="#accordion-form">
                         <div class="accordion-body">
                             <div class="mb-3 col">
-                                <input type="checkbox" name="granz_filled" id="granz_filled">
+                                <input type="checkbox" name="granz_filled" id="granz_filled" {% if initial.granz_filled %}checked{% endif %}>
                                 <label for="granz_filled" class="form-label">
                                     J'ai soumis ou vais soumettre un formulaire pour pour obtenir le <a href="https://granzensemble.wixsite.com/labelinclusion">label du GranzEnsemble</a>
                                 </label>
