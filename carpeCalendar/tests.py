@@ -1,5 +1,8 @@
 import datetime
 import zoneinfo
+from unittest import mock
+
+import icalendar
 
 from django.test import TestCase
 
@@ -87,3 +90,36 @@ class CategoryTreeTests(TestCase):
         response = self.client.get('/add-event')
         labels = [label for _, label in response.context['categories']]
         self.assertEqual(labels, ['Concert', 'Sport', '\u00a0\u00a0\u00a0↳ Football'])
+
+
+class IcsTests(TestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        category = Category.objects.create(name='Soirée', description='')
+        cls.event = Event.objects.create(title='Concert, jazz', location='Aula Magna', category=category, validated=True)
+        cls.date = EventDates.objects.create(
+            event=cls.event,
+            start=datetime.datetime(2026, 11, 2, 20, 0, tzinfo=BRUSSELS),
+            end=datetime.datetime(2026, 11, 2, 23, 0, tzinfo=BRUSSELS),
+        )
+        Event.objects.create(title='Pending', location='Aula Magna', category=category)
+
+    def test_event_ics(self):
+        response = self.client.get(f'/event/{self.event.id}/ics')
+        self.assertEqual(response['Content-Type'], 'text/calendar; charset=utf-8')
+        calendar = icalendar.Calendar.from_ical(response.content)
+        [event] = calendar.walk('VEVENT')
+        self.assertEqual(str(event['summary']), 'Concert, jazz')
+        self.assertEqual(event.decoded('dtstart'), self.date.start)
+        self.assertIn(f'/event/{self.event.id}/', str(event['url']))
+
+    def test_pending_event_ics_is_not_found(self):
+        pending = Event.objects.get(title='Pending')
+        self.assertEqual(self.client.get(f'/event/{pending.id}/ics').status_code, 404)
+
+    @mock.patch('django.utils.timezone.now', return_value=datetime.datetime(2026, 10, 24, tzinfo=datetime.UTC))
+    def test_calendar_feed(self, _):
+        response = self.client.get('/calendar.ics')
+        calendar = icalendar.Calendar.from_ical(response.content)
+        self.assertEqual([str(event['summary']) for event in calendar.walk('VEVENT')], ['Concert, jazz'])

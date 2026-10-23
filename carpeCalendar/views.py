@@ -3,10 +3,13 @@ import urllib.parse
 import zoneinfo
 from collections import defaultdict
 
-from django.shortcuts import render, redirect
+import icalendar
+from django.shortcuts import render, redirect, get_object_or_404
 from django.forms.models import model_to_dict
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Q
+from django.urls import reverse
+from django.utils import timezone
 
 from carpeCalendar.models import Event, EventDates, Category, Place, AcademicPeriod
 from carpeCalendar.forms import EventForm, DateForm
@@ -43,7 +46,8 @@ def category_choices(tree=None, depth=0):
 def calendar(request):
     places = Place.objects.all()
     periods = list(AcademicPeriod.objects.values('name', 'start', 'end', 'numbered', 'first_week_number'))
-    return render(request, 'calendar.html', {'category_tree': category_tree(), 'places': places, 'periods': periods})
+    subscribe_url = 'webcal://' + request.get_host() + reverse('calendar_ics')
+    return render(request, 'calendar.html', {'category_tree': category_tree(), 'places': places, 'periods': periods, 'subscribe_url': subscribe_url})
 
 def events(request):
     start = request.GET.get('start', None)
@@ -75,6 +79,51 @@ def map_url(event):
     else:
         query = f"{event.location}, Louvain-la-Neuve"
     return "https://www.google.com/maps/search/?api=1&query=" + urllib.parse.quote(query)
+
+def ics_event(request, date):
+    event = date.event
+    url = request.build_absolute_uri(reverse('event', args=[event.id]))
+    ics = icalendar.Event()
+    ics.add('uid', f"eventdate-{date.id}@agenda.carpestudentem.be")
+    ics.add('dtstamp', event.updated_at)
+    ics.add('dtstart', date.start)
+    ics.add('dtend', date.end)
+    ics.add('summary', event.title)
+    ics.add('location', event.location)
+    ics.add('description', f"{event.description}\n\n{url}" if event.description else url)
+    ics.add('url', url)
+    ics.add('categories', [event.category.name])
+    return ics
+
+def ics_response(request, dates, filename):
+    calendar = icalendar.Calendar()
+    calendar.add('prodid', '-//CarpeStudentem//Agenda du Carpe//FR')
+    calendar.add('version', '2.0')
+    calendar.add('x-wr-calname', 'Agenda du Carpe')
+    calendar.add('x-wr-timezone', 'Europe/Brussels')
+    # Ask subscribed calendar apps to refresh every 6 hours
+    calendar.add('refresh-interval', datetime.timedelta(hours=6), parameters={'VALUE': 'DURATION'})
+    calendar.add('x-published-ttl', 'PT6H')
+    for date in dates:
+        calendar.add_component(ics_event(request, date))
+    response = HttpResponse(calendar.to_ical(), content_type='text/calendar; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+def calendar_ics(request):
+    # Subscription feed: from a month ago to a year ahead
+    now = timezone.now()
+    dates = EventDates.objects.filter(
+        event__validated=True,
+        end__gte=now - datetime.timedelta(days=30),
+        start__lte=now + datetime.timedelta(days=365),
+    ).select_related('event', 'event__category').order_by('start')
+    return ics_response(request, dates, 'agenda-carpe.ics')
+
+def event_ics(request, event_id):
+    event = get_object_or_404(Event, id=event_id, validated=True)
+    dates = event.eventdates_set.select_related('event', 'event__category').order_by('start')
+    return ics_response(request, dates, f'evenement-{event.id}.ics')
 
 def create_qr_code(request):
     return render(request, 'create_qr_code.html')

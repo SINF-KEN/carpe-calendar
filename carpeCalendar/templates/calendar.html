@@ -69,6 +69,23 @@
             </div>
         </div>
     </section>
+    <section class="categories accordion-item">
+        <h2 class="accordion-header" id="heading-subscribe">
+            <button data-mdb-collapse-init class="accordion-button" type="button" data-mdb-toggle="collapse"
+                data-mdb-target="#collapse-subscribe" aria-expanded="false" aria-controls="collapse-subscribe">
+                <i class="fa-solid fa-calendar-plus me-2"></i> S'abonner à l'agenda
+            </button>
+        </h2>
+        <div id="collapse-subscribe" class="accordion-collapse collapse" data-bs-parent="sidebar-accordion" aria-labelledby="heading-subscribe" data-mdb-parent="#sidebar-accordion">
+            <div class="accordion-body">
+                <p class="small">Recevez tous les événements dans l'agenda de votre téléphone. Il se met à jour automatiquement.</p>
+                <div class="d-flex flex-column gap-2">
+                    <a class="btn btn-primary btn-sm" href="{{ subscribe_url }}">Apple, Outlook, Thunderbird…</a>
+                    <a class="btn btn-primary btn-sm" href="https://calendar.google.com/calendar/render?cid={{ subscribe_url|urlencode:'' }}" target="_blank" rel="noopener">Google Agenda</a>
+                </div>
+            </div>
+        </div>
+    </section>
     <section class="categories">
         <div class="sidebar-link">
             <a href="{% url 'add_event' %}">Ajouter un événement</a>
