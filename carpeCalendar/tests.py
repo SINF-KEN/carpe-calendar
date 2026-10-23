@@ -219,3 +219,24 @@ class WeekImageTests(TestCase):
         self.assertContains(response, '20:00')
         self.assertContains(response, 'Quiz')
         self.assertNotContains(response, 'Pending')
+
+
+class ProgressiveWebAppTests(TestCase):
+
+    def test_manifest(self):
+        response = self.client.get('/manifest.webmanifest')
+        self.assertEqual(response['Content-Type'], 'application/manifest+json')
+        manifest = response.json()
+        self.assertEqual(manifest['start_url'], '/calendar/')
+        self.assertEqual({icon['sizes'] for icon in manifest['icons']}, {'192x192', '512x512'})
+
+    def test_service_worker_served_from_root(self):
+        response = self.client.get('/sw.js')
+        self.assertEqual(response['Content-Type'], 'application/javascript')
+        self.assertEqual(response['Cache-Control'], 'no-cache')
+        self.assertContains(response, 'const OFFLINE_PAGES = ["/calendar/"]')
+
+    def test_pages_link_manifest_and_register_worker(self):
+        response = self.client.get('/calendar/')
+        self.assertContains(response, '<link rel="manifest" href="/manifest.webmanifest">')
+        self.assertContains(response, 'navigator.serviceWorker.register("/sw.js")')

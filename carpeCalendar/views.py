@@ -8,6 +8,7 @@ from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
 from django.shortcuts import render, redirect, get_object_or_404
+from django.templatetags.static import static
 from django.forms.models import model_to_dict
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q
@@ -154,6 +155,31 @@ def week_image(request):
         'previous_week': monday - datetime.timedelta(days=7),
         'next_week': monday + datetime.timedelta(days=7),
     })
+
+def manifest(request):
+    # Lets phones install the site as an app (progressive web app)
+    return JsonResponse({
+        'name': 'Agenda du Carpe',
+        'short_name': 'Agenda Carpe',
+        'description': "Les événements de Louvain-la-Neuve, par le CarpeStudentem",
+        'lang': 'fr',
+        'start_url': reverse('calendar'),
+        'scope': '/',
+        'display': 'standalone',
+        'background_color': '#ffffff',
+        'theme_color': '#C52224',
+        'icons': [
+            {'src': static('images/icon-192.png'), 'sizes': '192x192', 'type': 'image/png'},
+            {'src': static('images/icon-512.png'), 'sizes': '512x512', 'type': 'image/png'},
+            {'src': static('images/icon-maskable-512.png'), 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+        ],
+    }, content_type='application/manifest+json')
+
+def service_worker(request):
+    # Served from the root so it controls every page; never cached so updates reach users
+    response = render(request, 'sw.js', content_type='application/javascript')
+    response['Cache-Control'] = 'no-cache'
+    return response
 
 def create_qr_code(request):
     return render(request, 'create_qr_code.html')
